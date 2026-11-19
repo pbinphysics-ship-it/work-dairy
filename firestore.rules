@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function activeUser() { return signedIn() && userDoc().active == true; }
+    function role() { return userDoc().role; }
+    function isFaculty() { return activeUser() && role() == 'faculty'; }
+    function isHod() { return activeUser() && role() == 'hod'; }
+    function isPrincipal() { return activeUser() && role() == 'principal'; }
+    function sameDepartment(dept) { return userDoc().department == dept; }
+
+    match /users/{uid} {
+      // Users may read their own profile. Principal can read all profiles.
+      allow read: if activeUser() && (request.auth.uid == uid || isPrincipal());
+      // Provision/update profiles only through Firebase Console or trusted Admin SDK.
+      allow write: if false;
+    }
+
+    match /diaries/{diaryId} {
+      allow read: if activeUser() && (
+        (isFaculty() && resource.data.ownerUid == request.auth.uid) ||
+        (isHod() && sameDepartment(resource.data.department)) ||
+        isPrincipal()
+      );
+
+      allow create: if isFaculty()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.department == userDoc().department
+        && request.resource.data.status in ['draft','submitted']
+        && request.resource.data.keys().hasOnly([
+          'ownerUid','facultyName','department','workDate','weekStart',
+          'startTime','endTime','teaching','syllabus','practical','research',
+          'other','remarks','status','updatedAt','createdAt'
+        ]);
+
+      // Faculty can edit their own unapproved record, but cannot change its identity or ownership.
+      allow update: if (
+        isFaculty()
+        && resource.data.ownerUid == request.auth.uid
+        && resource.data.status in ['draft','returned','submitted']
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.department == resource.data.department
+        && request.resource.data.status in ['draft','submitted']
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'reviewedBy','reviewedAt','hodRemarks','createdAt'
+        ])
+      ) || (
+        (isHod() && sameDepartment(resource.data.department) || isPrincipal())
+        && resource.data.status == 'submitted'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status','hodRemarks','reviewedBy','reviewedAt'
+        ])
+        && request.resource.data.status in ['approved','returned']
+        && request.resource.data.reviewedBy == request.auth.uid
+      );
+
+      allow delete: if isFaculty()
+        && resource.data.ownerUid == request.auth.uid
+        && resource.data.status == 'draft';
+    }
+  }
+}

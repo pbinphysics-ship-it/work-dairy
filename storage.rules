@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // No document-upload feature is enabled in this starter version.
+    // Keep Storage closed until a specific upload workflow and validation rules are added.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

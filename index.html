@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Faculty Work Diary - Government First Grade College, Channapatna">
+  <title>Faculty Work Diary | GFGC Channapatna</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="js/firebase-config.js"></script>
+  <script defer src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark">GFGC</div>
+    <div><strong>Government First Grade College, Channapatna</strong><small>Faculty Work Diary Management System</small></div>
+  </header>
+
+  <main class="container">
+    <section id="loginView" class="panel login-panel">
+      <div class="eyebrow">COLLEGE WORK MANAGEMENT</div>
+      <h1>Faculty Work Diary</h1>
+      <p class="muted">Sign in using your college-authorised account.</p>
+      <form id="loginForm">
+        <label for="email">Email address</label>
+        <input id="email" type="email" autocomplete="username" required placeholder="name@college.edu">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required placeholder="Your password">
+        <button class="primary full" type="submit">Sign in</button>
+      </form>
+      <p id="loginMessage" class="message" aria-live="polite"></p>
+      <p class="hint">Accounts are created by the authorised system administrator in Firebase Authentication.</p>
+    </section>
+
+    <section id="appView" hidden>
+      <div class="welcome-row">
+        <div><div class="eyebrow" id="roleLabel">WORKSPACE</div><h1 id="welcomeTitle">Dashboard</h1><p id="userSummary" class="muted"></p></div>
+        <button id="logoutBtn" class="outline">Sign out</button>
+      </div>
+
+      <nav class="tabs" aria-label="Dashboard navigation">
+        <button class="tab active" data-tab="dashboard">Dashboard</button>
+        <button class="tab" data-tab="entry" id="entryTab">Diary entry</button>
+        <button class="tab" data-tab="reports">Reports</button>
+      </nav>
+
+      <section id="dashboardTab" class="tab-panel">
+        <div id="stats" class="stats-grid"></div>
+        <div class="panel">
+          <div class="section-heading"><div><h2 id="listHeading">Diary records</h2><p class="muted">Recent submissions and verification status</p></div><button id="refreshBtn" class="outline">Refresh</button></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Date</th><th>Faculty</th><th>Department</th><th>Activity</th><th>Status</th><th id="actionHead">Action</th></tr></thead><tbody id="diaryRows"><tr><td colspan="6">Loading records…</td></tr></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="entryTabPanel" class="tab-panel" hidden>
+        <div class="panel">
+          <h2>Daily / Weekly Work Diary</h2>
+          <p class="muted">Enter the day's work. Save as a draft or submit it for HOD verification.</p>
+          <form id="diaryForm" class="form-grid">
+            <div><label for="workDate">Date *</label><input type="date" id="workDate" required></div>
+            <div><label for="department">Department *</label><select id="department" required></select></div>
+            <div><label for="startTime">From</label><input type="time" id="startTime"></div>
+            <div><label for="endTime">To</label><input type="time" id="endTime"></div>
+            <div class="span-2"><label for="teaching">Teaching activity / class / subject</label><textarea id="teaching" rows="2" placeholder="Class, semester, subject and hours"></textarea></div>
+            <div class="span-2"><label for="syllabus">Topics taught / syllabus completed</label><textarea id="syllabus" rows="2"></textarea></div>
+            <div class="span-2"><label for="practical">Practical / laboratory activity</label><textarea id="practical" rows="2"></textarea></div>
+            <div class="span-2"><label for="research">Research / publication / project activity</label><textarea id="research" rows="2"></textarea></div>
+            <div class="span-2"><label for="other">Other duties (meetings, seminars, NSS, examination, etc.)</label><textarea id="other" rows="2"></textarea></div>
+            <div class="span-2"><label for="remarks">Remarks</label><textarea id="remarks" rows="2"></textarea></div>
+            <div class="span-2 button-row"><button type="button" id="saveDraftBtn" class="outline">Save draft</button><button type="submit" class="primary">Submit to HOD</button></div>
+          </form>
+          <p id="formMessage" class="message" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <section id="reportsTab" class="tab-panel" hidden>
+        <div class="panel">
+          <h2>Reports and exports</h2>
+          <p class="muted">Export the records visible to your role. Apply a date range or select a reporting period.</p>
+          <div class="filter-grid">
+            <div><label for="fromDate">From date</label><input type="date" id="fromDate"></div>
+            <div><label for="toDate">To date</label><input type="date" id="toDate"></div>
+            <div><label for="period">Quick period</label><select id="period"><option value="">Custom date range</option><option value="month">Current month</option><option value="year">Current year</option></select></div>
+          </div>
+          <div class="button-row export-buttons">
+            <button id="excelBtn" class="primary">Export Excel</button>
+            <button id="pdfBtn" class="outline">Export PDF</button>
+            <button id="wordBtn" class="outline">Export Word</button>
+          </div>
+          <p id="reportMessage" class="message" aria-live="polite"></p>
+        </div>
+      </section>
+    </section>
+  </main>
+  <footer>© Government First Grade College, Channapatna · Faculty Work Diary</footer>
+
+  <dialog id="reviewDialog">
+    <form method="dialog" id="reviewForm">
+      <h2>HOD verification</h2>
+      <p id="reviewInfo" class="muted"></p>
+      <label for="hodRemarks">Verification remarks</label>
+      <textarea id="hodRemarks" rows="3" placeholder="Enter remarks or correction required"></textarea>
+      <div class="button-row">
+        <button type="button" id="returnBtn" class="outline">Return for correction</button>
+        <button type="button" id="approveBtn" class="primary">Approve</button>
+        <button type="submit" class="outline">Close</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
